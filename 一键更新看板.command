@@ -10,10 +10,10 @@ echo '[1/4] 生成看板...'
 python3 "$CORE/update_meta_dashboard.py"
 
 echo '[2/4] 打开预览...'
-open "$CORE/index.html"
+open "$ROOT/index.html"
 
 echo '[3/4] 提交变更...'
-git add "$CORE/index.html" "$CORE/meta-dashboard-template.html" "$CORE/update_meta_dashboard.py" "$ROOT/一键更新看板.command" .gitignore 2>/dev/null || true
+git add "$ROOT/index.html" "$CORE/meta-dashboard-template.html" "$CORE/update_meta_dashboard.py" "$ROOT/一键更新看板.command" .gitignore 2>/dev/null || true
 if git diff --cached --quiet; then
   echo '没有变更可提交。'
 else

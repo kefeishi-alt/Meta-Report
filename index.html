@@ -293,7 +293,13 @@
     }
 
     const classifyModel = (name) => { const v=(name||'').toUpperCase(); if (v.includes('TK PRO')||v.includes('TKPRO')||v.includes('TK-PRO')) return 'TK PRO'; if (v.includes('TK1')||v.includes('TK 1')||v.includes('TK-1')) return 'TK1'; if (v.includes('FAT TIRE')||v.includes('FATTIRE')||v.includes('FAT-TIRE')) return 'FAT TIRE'; return '其他'; };
-    const classifyMedia = (name) => { const v=(name||'').toUpperCase(); if (v.includes('VIDEO')) return 'Video'; if (v.includes('IMAGE')) return 'Image'; return 'Other'; };
+    const classifyMedia = (name) => {
+      const v=(name||'').toUpperCase();
+      if (v.includes('CATALOG')) return 'Catalog Ads';
+      if (v.includes('VIDEO')) return 'Video';
+      if (v.includes('IMAGE')) return 'Image';
+      return 'Other';
+    };
     const classifyContent = (name) => {
       const v=(name||'').toUpperCase();
       if (v.includes('KOL')) return 'KOL';
@@ -303,7 +309,7 @@
       if (v.includes('REVIEW') || v.includes('TESTIMONIAL')) return 'Review';
       if (v.includes('UGC')) return 'UGC';
       if (v.includes('COMPARISON') || v.includes('COMPARE')) return 'Comparison';
-      if (v.includes('CATALOG')) return 'Catalog Ads';
+      if (v.includes('CATALOG')) return null;
       return 'Other';
     };
 
@@ -376,9 +382,9 @@
       trendChart = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:{ responsive:true, interaction:{mode:'index', intersect:false}, plugins:{legend:{position:'top',labels:{boxWidth:12}}}, scales:{ y:{beginAtZero:true, grid:{color:'#efe7dc'}, ticks:{callback:v=>'$'+v}}, y1:{position:'right', beginAtZero:true, grid:{drawOnChartArea:false}} } }, plugins: currentMode === 'day' ? [deltaPlugin] : [roasLabelPlugin] });
     }
 
-    function aggGroup(records, classifier) { const groups = {}; records.forEach(r => { const k = classifier(r.ads); groups[k] = groups[k] || { spend: 0, revenue: 0 }; groups[k].spend += r.spend || 0; groups[k].revenue += r.revenue || 0; }); return groups; }
+    function aggGroup(records, classifier) { const groups = {}; records.forEach(r => { const k = classifier(r.ads); if (!k) return; groups[k] = groups[k] || { spend: 0, revenue: 0 }; groups[k].spend += r.spend || 0; groups[k].revenue += r.revenue || 0; }); return groups; }
     function renderList(el, items, highlightLabel) { el.innerHTML=''; const head=document.createElement('div'); head.className='mini-item header'; head.innerHTML='<div class="mini-label">维度</div><div class="mini-metrics"><span>花费</span><span>转化金额</span><span>ROAS</span></div>'; el.appendChild(head); items.forEach(item=>{ const hot=highlightLabel && item.label===highlightLabel; const div=document.createElement('div'); div.className='mini-item'; div.innerHTML=`<div class="mini-label">${item.label}${hot?'<span class="crown">👑</span>':''}</div><div class="mini-metrics"><span>${item.spend}</span><span>${item.revenue}</span><span class="${hot?'roas-hot':''}">${item.roas}</span></div>`; el.appendChild(div); }); }
-    function renderCreativeBlocks(creativeData) { const build = groups => Object.entries(groups).map(([k,v]) => ({ label:k, spend:fmtCurrency(v.spend), revenue:fmtCurrency(v.revenue), roas:v.spend?(v.revenue/v.spend).toFixed(2):'-', roasValue:v.spend?(v.revenue/v.spend):0 })); const render = (id, groups) => { const items=build(groups); const best=items.slice().sort((a,b)=>b.roasValue-a.roasValue)[0]?.label; renderList(document.getElementById(id), items, best); }; render('modelList', aggGroup(creativeData, classifyModel)); render('mediaTypeList', aggGroup(creativeData, classifyMedia)); render('contentTypeList', aggGroup(creativeData, classifyContent)); }
+    function renderCreativeBlocks(creativeData) { const build = groups => Object.entries(groups).map(([k,v]) => ({ label:k, spend:fmtCurrency(v.spend), revenue:fmtCurrency(v.revenue), roas:v.spend?(v.revenue/v.spend).toFixed(2):'-', roasValue:v.spend?(v.revenue/v.spend):0 })); const render = (id, groups) => { const items=build(groups); const best=items.slice().sort((a,b)=>b.roasValue-a.roasValue)[0]?.label; renderList(document.getElementById(id), items, best); }; const mediaGroups = aggGroup(creativeData, classifyMedia); delete mediaGroups.Other; render('modelList', aggGroup(creativeData, classifyModel)); render('mediaTypeList', mediaGroups); render('contentTypeList', aggGroup(creativeData, classifyContent)); }
     function renderTable(data) { const tbody=document.getElementById('dataTable'); tbody.innerHTML=''; data.forEach(d=>{ const row=document.createElement('tr'); row.innerHTML=`<td>${d.date}</td><td>${fmtCurrency(d.spend)}</td><td>${fmtCurrency(d.revenue)}</td><td>${d.roas?d.roas.toFixed(2):'-'}</td><td>${fmtPct(d.ctr)}</td><td>${fmtCurrency(d.cpc)}</td><td>${fmtPct(d.conversionRate)}</td><td>${fmtNumber(d.purchases)}</td><td>${fmtNumber(d.clicks)}</td>`; tbody.appendChild(row); }); }
     function renderInsights(data, rangeData, creativeData) {
       const insights=document.getElementById('insights'); insights.innerHTML=''; if(!data.length) return;
