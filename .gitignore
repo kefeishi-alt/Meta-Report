@@ -1,1 +1,6 @@
 .DS_Store
+看板-skf.xlsx
+一键生成看板.command
+一键生成并推送.command
+meta-dashboard-template.html
+update_meta_dashboard.py
