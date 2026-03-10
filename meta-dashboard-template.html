@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meta Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#f6f2ea; --panel:#fff; --ink:#1e1a16; --muted:#6d655c; --accent:#d46b08; --accent2:#0f766e; --accent3:#2563eb; --line:#e8e0d6; --shadow:0 18px 40px rgba(30,26,22,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Source Sans 3",system-ui,sans-serif; color:var(--ink); background:radial-gradient(circle at 20% 20%, #fff7ec 0%, #f6f2ea 50%, #f2ede3 100%); }
+    .wrap { max-width:1360px; margin:0 auto; padding:18px 18px 32px; }
+    header { display:grid; grid-template-columns:1fr minmax(380px,680px); gap:12px; align-items:start; margin-bottom:14px; }
+    .title h1 { font-family:"Space Grotesk",sans-serif; font-size:28px; margin:0 0 6px; }
+    .title p { margin:0; color:var(--muted); font-size:14px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .tab { padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none; font-size:13px; cursor:pointer; }
+    .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .filters { display:grid; gap:10px; background:var(--panel); padding:12px 14px; border-radius:14px; border:1px solid var(--line); box-shadow:var(--shadow); }
+    .filters-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .filters label { font-size:12px; color:var(--muted); }
+    .filters select, .filters input, .filters button { font:inherit; padding:7px 12px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:13px; }
+    .filters button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .grid { display:grid; gap:16px; grid-template-columns:repeat(10,1fr); }
+    .card { background:var(--panel); border-radius:16px; padding:14px 16px; border:1px solid var(--line); box-shadow:var(--shadow); }
+    .kpi { grid-column:span 2; min-height:100px; }
+    .kpi h3 { margin:0 0 10px; font-size:13px; color:var(--muted); }
+    .kpi .value { font-family:"Space Grotesk",sans-serif; font-size:26px; font-weight:600; }
+    .kpi .sub { margin-top:6px; font-size:12px; color:var(--muted); }
+    .chart { grid-column:span 6; min-height:360px; }
+    .analysis { grid-column:span 4; min-height:360px; display:flex; flex-direction:column; gap:10px; }
+    .analysis h3 { margin:0; font-family:"Space Grotesk",sans-serif; font-size:16px; }
+    .analysis ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; color:var(--muted); font-size:13px; }
+    .analysis li { padding:8px 10px; border-radius:10px; background:#fdf7f0; border:1px solid #f5e5d7; }
+    .analysis li.alert { color:#b42318; background:#fff1f0; border-color:#fecaca; font-weight:600; }
+    .delta { font-weight:600; margin-left:6px; }
+    .delta.up { color:#15803d; }
+    .delta.down { color:#b42318; }
+    .small-grid { grid-column:span 10; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .small { grid-column:auto; }
+    .small h4 { margin:0 0 8px; font-size:13px; color:var(--muted); }
+    .mini-list { display:grid; gap:8px; font-size:13px; }
+    .mini-item { display:grid; grid-template-columns:1.1fr 1fr; gap:6px 12px; padding:8px 10px; border-radius:10px; background:#fff8f0; border:1px solid #f0e1d1; }
+    .mini-item.header { background:#fff3e5; border-color:#f2d9bf; font-weight:600; }
+    .mini-label { font-weight:600; color:var(--ink); }
+    .mini-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px 8px; font-size:12px; color:var(--muted); text-align:right; }
+    .mini-metrics span { white-space:nowrap; }
+    .crown { margin-left:6px; color:#b45309; font-size:12px; }
+    .roas-hot { color:#b42318; font-weight:700; }
+    .table { grid-column:span 10; padding:0; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+    th:first-child, td:first-child { text-align:left; }
+    th { background:#fff7ee; font-weight:600; color:var(--muted); }
+    .note { font-size:12px; color:var(--muted); }
+    .hidden { display:none !important; }
+    @media (max-width:980px) { header { grid-template-columns:1fr; } .kpi { grid-column:span 5; } .chart,.analysis,.small-grid,.table { grid-column:span 10; } .small-grid { grid-template-columns:1fr; } }
+    @media (max-width:640px) { .kpi { grid-column:span 10; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="tabs" id="regionTabs"></div>
+    <header>
+      <div class="title">
+        <h1 id="pageTitle">Meta Dashboard-US</h1>
+        <p>数据范围：<span id="dateRange"></span> · 当前区域：<span id="regionLabel">US</span></p>
+      </div>
+      <div class="filters">
+        <div class="filters-row">
+          <label>周期</label>
+          <select id="granularitySelect">
+            <option value="month">月度</option>
+            <option value="week" selected>周度</option>
+            <option value="custom">任意</option>
+          </select>
+          <select id="periodSelect"></select>
+          <button id="summaryButton" class="active">汇总</button>
+        </div>
+        <div class="filters-row hidden" id="customRangeRow">
+          <label>开始</label>
+          <input type="date" id="customStart" />
+          <label>结束</label>
+          <input type="date" id="customEnd" />
+          <button id="applyCustom">应用</button>
+        </div>
+        <div class="filters-row" id="dayButtonsRow">
+          <label>当周日期</label>
+          <div id="dayButtons" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card kpi"><h3>花费</h3><div class="value" id="kpiSpend">-</div><div class="sub" id="kpiSpendSub">环比 -</div></div>
+      <div class="card kpi"><h3>转化金额</h3><div class="value" id="kpiRevenue">-</div><div class="sub" id="kpiRevenueSub">环比 -</div></div>
+      <div class="card kpi"><h3>ROAS</h3><div class="value" id="kpiRoas">-</div><div class="sub" id="kpiRoasSub">环比 -</div></div>
+      <div class="card kpi"><h3>CPA</h3><div class="value" id="kpiCpa">-</div><div class="sub" id="kpiCpaSub">环比 -</div></div>
+      <div class="card kpi"><h3>CTR</h3><div class="value" id="kpiCtr">-</div><div class="sub" id="kpiCtrSub">环比 -</div></div>
+      <div class="card kpi"><h3>CPC</h3><div class="value" id="kpiCpc">-</div><div class="sub" id="kpiCpcSub">环比 -</div></div>
+      <div class="card kpi"><h3>CPM</h3><div class="value" id="kpiCpm">-</div><div class="sub" id="kpiCpmSub">环比 -</div></div>
+      <div class="card kpi"><h3>转化率</h3><div class="value" id="kpiCvr">-</div><div class="sub" id="kpiCvrSub">环比 -</div></div>
+      <div class="card kpi"><h3>客单价</h3><div class="value" id="kpiAov">-</div><div class="sub" id="kpiAovSub">环比 -</div></div>
+      <div class="card kpi"><h3>购买次数</h3><div class="value" id="kpiPurchases">-</div><div class="sub" id="kpiPurchasesSub">环比 -</div></div>
+      <div class="card chart">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+          <h3 id="trendTitle" style="margin:0; font-family:'Space Grotesk',sans-serif;">趋势（每日）</h3>
+          <div id="compareWrap" style="display:flex; align-items:center; gap:6px;" class="hidden">
+            <label style="font-size:12px; color:var(--muted);">当天对比</label>
+            <select id="compareSelect">
+              <option value="period" selected>当日 vs 当前周期均值</option>
+              <option value="prev">当日 vs 前日</option>
+            </select>
+          </div>
+        </div>
+        <canvas id="trendChart" height="260"></canvas>
+        <div class="note" id="trendNote"></div>
+      </div>
+      <div class="card analysis">
+        <h3>简要分析</h3>
+        <div style="color:var(--muted); font-size:13px;">随区域与时间筛选自动更新</div>
+        <ul id="insights"></ul>
+        <div style="margin-top:auto; font-size:12px; color:var(--muted);">模型/素材聚合基于当前区域与时间范围</div>
+      </div>
+      <div class="small-grid">
+        <div class="card small"><h4>型号表现</h4><div class="mini-list" id="modelList"></div></div>
+        <div class="card small"><h4>素材类型表现</h4><div class="mini-list" id="mediaTypeList"></div></div>
+        <div class="card small"><h4>内容方向表现</h4><div class="mini-list" id="contentTypeList"></div></div>
+      </div>
+      <div class="card table">
+        <table>
+          <thead><tr><th>日期</th><th>花费</th><th>转化金额</th><th>ROAS</th><th>CTR</th><th>CPC</th><th>转化率</th><th>购买</th><th>点击</th></tr></thead>
+          <tbody id="dataTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const ALL_DATA = __ALL_DATA__;
+    const REGIONS = ['US','CA','UK','EU'];
+    let activeRegion = 'US';
+    const fmtCurrency = (v) => v == null ? '-' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+    const fmtNumber = (v) => v == null ? '-' : v.toLocaleString('en-US');
+    const fmtPct = (v) => v == null ? '-' : (v * 100).toFixed(2) + '%';
+    const sum = (arr, key) => arr.reduce((acc, d) => acc + (d[key] || 0), 0);
+    const safeDiv = (a, b) => (!b ? null : a / b);
+    const deltaPct = (cur, base) => (base ? ((cur - base) / base) * 100 : null);
+    function agg(records) { const spend=sum(records,'spend'), revenue=sum(records,'revenue'), purchases=sum(records,'purchases'), clicks=sum(records,'clicks'), impressions=sum(records,'impressions'); return { spend,revenue,purchases,clicks,impressions, roas:safeDiv(revenue,spend), aov:safeDiv(revenue,purchases), cpa:safeDiv(spend,purchases), ctr:safeDiv(clicks,impressions), cpc:safeDiv(spend,clicks), cpm:safeDiv(spend,impressions)?safeDiv(spend,impressions)*1000:null, cvr:safeDiv(purchases,clicks) }; }
+
+    const pageTitle = document.getElementById('pageTitle');
+    const dateRangeEl = document.getElementById('dateRange');
+    const regionLabel = document.getElementById('regionLabel');
+    const regionTabs = document.getElementById('regionTabs');
+    const granularitySelect = document.getElementById('granularitySelect');
+    const periodSelect = document.getElementById('periodSelect');
+    const customRangeRow = document.getElementById('customRangeRow');
+    const customStart = document.getElementById('customStart');
+    const customEnd = document.getElementById('customEnd');
+    const applyCustom = document.getElementById('applyCustom');
+    const summaryButton = document.getElementById('summaryButton');
+    const dayButtonsRow = document.getElementById('dayButtonsRow');
+    const dayButtonsWrap = document.getElementById('dayButtons');
+    const compareWrap = document.getElementById('compareWrap');
+    const compareSelect = document.getElementById('compareSelect');
+
+    let currentMode = 'summary';
+    let compareMode = 'period';
+    let selectedDay = null;
+    let selectedRange = { type: 'week', key: null, start: '', end: '', dates: [] };
+    let trendChart;
+
+    function getMeta(){ return ALL_DATA[activeRegion].meta || []; }
+    function getCreative(){ return ALL_DATA[activeRegion].creative || []; }
+    function getAllDates(){ return getMeta().map(d => d.date).sort(); }
+    function getMinDate(){ return getAllDates()[0]; }
+    function getMaxDate(){ return getAllDates()[getAllDates().length - 1]; }
+
+    function formatLocalDate(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    function startOfWeek(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const day = dt.getDay() || 7;
+      dt.setDate(dt.getDate() - (day - 1));
+      return formatLocalDate(dt);
+    }
+    function endOfWeek(dateStr) {
+      const [y, m, d] = startOfWeek(dateStr).split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + 6);
+      return formatLocalDate(dt);
+    }
+    function monthKey(dateStr) { return dateStr.slice(0,7); }
+
+    function buildPeriods() {
+      const allDates = getAllDates();
+      const weeks = {}, months = {};
+      allDates.forEach(date => { const wk=startOfWeek(date); (weeks[wk] ||= []).push(date); const mk=monthKey(date); (months[mk] ||= []).push(date); });
+      return {
+        week: Object.keys(weeks).sort().map(start => ({ key:start, label:`${start} ~ ${endOfWeek(start)}`, start, end:endOfWeek(start), dates:weeks[start].sort() })),
+        month: Object.keys(months).sort().map(key => ({ key, label:key, start:months[key][0], end:months[key][months[key].length-1], dates:months[key].sort() }))
+      };
+    }
+
+    function renderRegionTabs() {
+      regionTabs.innerHTML = '';
+      REGIONS.forEach(code => {
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (code === activeRegion ? ' active' : '');
+        btn.textContent = code;
+        btn.addEventListener('click', () => {
+          activeRegion = code;
+          renderRegionTabs();
+          initializeForRegion();
+        });
+        regionTabs.appendChild(btn);
+      });
+    }
+
+    function setPeriodOptions() {
+      const periods = buildPeriods();
+      periodSelect.innerHTML = '';
+      const type = granularitySelect.value;
+      const isWeek = type === 'week';
+      summaryButton.classList.toggle('hidden', !isWeek);
+      dayButtonsRow.classList.toggle('hidden', !isWeek);
+      if (type === 'custom') {
+        customRangeRow.classList.remove('hidden');
+        periodSelect.classList.add('hidden');
+        customStart.value = selectedRange.start || getMinDate();
+        customEnd.value = selectedRange.end || getMaxDate();
+        currentMode = 'summary';
+        selectedDay = null;
+        renderDayButtons();
+        update();
+        return;
+      }
+      customRangeRow.classList.add('hidden');
+      periodSelect.classList.remove('hidden');
+      periods[type].forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.key; opt.textContent = item.label; periodSelect.appendChild(opt);
+      });
+      const fallback = periods[type][periods[type].length - 1];
+      const active = selectedRange.type === type && selectedRange.key ? selectedRange.key : (fallback ? fallback.key : null);
+      if (active) periodSelect.value = active;
+      applySelectedPeriod();
+    }
+
+    function applySelectedPeriod() {
+      const periods = buildPeriods();
+      const type = granularitySelect.value;
+      if (type === 'custom') {
+        const start = customStart.value || getMinDate();
+        const end = customEnd.value || getMaxDate();
+        selectedRange = { type:'custom', key:'custom', start, end, dates:getAllDates().filter(d => d >= start && d <= end) };
+      } else {
+        const item = periods[type].find(x => x.key === periodSelect.value) || periods[type][periods[type].length - 1];
+        selectedRange = { ...item, type };
+      }
+      if (selectedRange.type === 'week') {
+        dayButtonsRow.classList.remove('hidden');
+        if (!selectedDay || !selectedRange.dates.includes(selectedDay)) {
+          selectedDay = selectedRange.dates[selectedRange.dates.length - 1] || null;
+        }
+      } else {
+        dayButtonsRow.classList.add('hidden');
+        currentMode = 'summary';
+        selectedDay = null;
+      }
+      renderDayButtons();
+      update();
+    }
+
+    function renderDayButtons() {
+      dayButtonsWrap.innerHTML = '';
+      if (selectedRange.type !== 'week') return;
+      selectedRange.dates.forEach(date => {
+        const btn = document.createElement('button');
+        btn.textContent = date.slice(5).replace('-', '.');
+        if (currentMode === 'day' && date === selectedDay) btn.classList.add('active');
+        btn.addEventListener('click', () => { currentMode = 'day'; selectedDay = date; renderDayButtons(); update(); });
+        dayButtonsWrap.appendChild(btn);
+      });
+    }
+
+    const classifyModel = (name) => { const v=(name||'').toUpperCase(); if (v.includes('TK PRO')||v.includes('TKPRO')||v.includes('TK-PRO')) return 'TK PRO'; if (v.includes('TK1')||v.includes('TK 1')||v.includes('TK-1')) return 'TK1'; if (v.includes('FAT TIRE')||v.includes('FATTIRE')||v.includes('FAT-TIRE')) return 'FAT TIRE'; return '其他'; };
+    const classifyMedia = (name) => { const v=(name||'').toUpperCase(); if (v.includes('VIDEO')) return 'Video'; if (v.includes('IMAGE')) return 'Image'; return 'Other'; };
+    const classifyContent = (name) => {
+      const v=(name||'').toUpperCase();
+      if (v.includes('KOL')) return 'KOL';
+      if (v.includes('SELLING')) return 'Selling Points';
+      if (v.includes('BRANDING')) return 'Branding';
+      if (v.includes('DISCOUNT') || v.includes('OFFER') || v.includes('PROMO')) return 'Discount';
+      if (v.includes('REVIEW') || v.includes('TESTIMONIAL')) return 'Review';
+      if (v.includes('UGC')) return 'UGC';
+      if (v.includes('COMPARISON') || v.includes('COMPARE')) return 'Comparison';
+      if (v.includes('CATALOG')) return 'Catalog Ads';
+      return 'Other';
+    };
+
+    function filterMeta() {
+      const meta = getMeta();
+      if (currentMode === 'day' && selectedDay) return meta.filter(m => m.date === selectedDay);
+      return meta.filter(m => m.date >= selectedRange.start && m.date <= selectedRange.end);
+    }
+    function filterRangeMeta() { const meta = getMeta(); return meta.filter(m => m.date >= selectedRange.start && m.date <= selectedRange.end); }
+    function filterCreative() {
+      const creative = getCreative();
+      if (currentMode === 'day' && selectedDay) return creative.filter(c => c.day === selectedDay);
+      return creative.filter(c => c.day >= selectedRange.start && c.day <= selectedRange.end);
+    }
+
+    function formatDelta(delta) { if (delta == null || Number.isNaN(delta)) return '<span class="delta">-</span>'; const cls = delta >= 0 ? 'up' : 'down'; const arrow = delta >= 0 ? '▲' : '▼'; return `<span class="delta ${cls}">${arrow} ${Math.abs(delta).toFixed(1)}%</span>`; }
+    function renderKpis(data, label, deltas) {
+      const a = agg(data);
+      document.getElementById('kpiSpend').textContent = fmtCurrency(a.spend);
+      document.getElementById('kpiRevenue').textContent = fmtCurrency(a.revenue);
+      document.getElementById('kpiRoas').textContent = a.roas ? a.roas.toFixed(2) : '-';
+      document.getElementById('kpiCpa').textContent = fmtCurrency(a.cpa);
+      document.getElementById('kpiCtr').textContent = fmtPct(a.ctr);
+      document.getElementById('kpiCpc').textContent = fmtCurrency(a.cpc);
+      document.getElementById('kpiCpm').textContent = fmtCurrency(a.cpm);
+      document.getElementById('kpiCvr').textContent = fmtPct(a.cvr);
+      document.getElementById('kpiAov').textContent = fmtCurrency(a.aov);
+      document.getElementById('kpiPurchases').textContent = fmtNumber(a.purchases);
+      document.getElementById('kpiSpendSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.spend) : formatDelta(null)}`;
+      document.getElementById('kpiRevenueSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.revenue) : formatDelta(null)}`;
+      document.getElementById('kpiRoasSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.roas) : formatDelta(null)}`;
+      document.getElementById('kpiCpaSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.cpa) : formatDelta(null)}`;
+      document.getElementById('kpiCtrSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.ctr) : formatDelta(null)}`;
+      document.getElementById('kpiCpcSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.cpc) : formatDelta(null)}`;
+      document.getElementById('kpiCpmSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.cpm) : formatDelta(null)}`;
+      document.getElementById('kpiCvrSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.cvr) : formatDelta(null)}`;
+      document.getElementById('kpiAovSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.aov) : formatDelta(null)}`;
+      document.getElementById('kpiPurchasesSub').innerHTML = `环比 ${deltas ? formatDelta(deltas.purchases) : formatDelta(null)}`;
+    }
+
+    function renderChart(data, rangeData) {
+      const isDayView = currentMode === 'day' && selectedDay;
+      let labels, datasets, deltaSeries;
+      if (isDayView) {
+        const sorted = rangeData.slice().sort((a,b)=>a.date.localeCompare(b.date));
+        const idx = sorted.findIndex(d => d.date === selectedDay);
+        const day = idx >= 0 ? sorted[idx] : sorted[sorted.length - 1];
+        const prevDay = idx > 0 ? sorted[idx - 1] : null;
+        const rangeAgg = agg(rangeData);
+        const baseSpend = compareMode === 'prev' ? (prevDay?.spend || 0) : ((rangeAgg.spend || 0) / Math.max(rangeData.length,1));
+        const baseRevenue = compareMode === 'prev' ? (prevDay?.revenue || 0) : ((rangeAgg.revenue || 0) / Math.max(rangeData.length,1));
+        labels = ['花费', '转化金额'];
+        deltaSeries = [deltaPct(day.spend || 0, baseSpend), deltaPct(day.revenue || 0, baseRevenue)];
+        datasets = [
+          { label: '当天', data: [day.spend || 0, day.revenue || 0], backgroundColor: 'rgba(212,107,8,.78)', borderRadius: 6, yAxisID: 'y' },
+          { label: compareMode === 'prev' ? '前日' : '周期均值', data: [baseSpend, baseRevenue], backgroundColor: 'rgba(15,118,110,.35)', borderRadius: 6, yAxisID: 'y' }
+        ];
+      } else {
+        labels = data.map(d => d.date.slice(5));
+        datasets = [
+          { label: '花费', data: data.map(d => d.spend || 0), backgroundColor: 'rgba(212,107,8,.65)', borderRadius: 6, yAxisID: 'y' },
+          { label: '转化金额', data: data.map(d => d.revenue || 0), backgroundColor: 'rgba(15,118,110,.65)', borderRadius: 6, yAxisID: 'y' },
+          { label: 'ROAS', data: data.map(d => d.roas || 0), type: 'line', borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.15)', tension: .35, yAxisID: 'y1', pointRadius: 2 }
+        ];
+      }
+      const ctx = document.getElementById('trendChart');
+      if (trendChart) trendChart.destroy();
+      const roasLabelPlugin = { id:'roasLabelPlugin', afterDatasetsDraw(chart){ const ri=chart.data.datasets.findIndex(d=>d.label==='ROAS'); if(ri<0) return; const meta=chart.getDatasetMeta(ri); const {ctx}=chart; ctx.save(); ctx.fillStyle='#2563eb'; ctx.font='11px "Space Grotesk", sans-serif'; meta.data.forEach((pt,i)=>ctx.fillText((chart.data.datasets[ri].data[i]||0).toFixed(2), pt.x+6, pt.y-6)); ctx.restore(); }};
+      const deltaPlugin = { id:'deltaPlugin', afterDatasetsDraw(chart){ const {ctx}=chart; const m1=chart.getDatasetMeta(0), m2=chart.getDatasetMeta(1); ctx.save(); ctx.strokeStyle='#b42318'; ctx.lineWidth=1.5; ctx.fillStyle='#b42318'; ctx.font='11px "Space Grotesk", sans-serif'; for(let i=0;i<m1.data.length;i++){ const p1={x:m1.data[i].x,y:m1.data[i].y}; const p2={x:m2.data[i].x,y:m2.data[i].y}; ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke(); const raw=deltaSeries && deltaSeries[i] != null ? deltaSeries[i].toFixed(1)+'%' : '—'; ctx.fillText(raw, ((p1.x+p2.x)/2)-10, ((p1.y+p2.y)/2)-8); }} };
+      trendChart = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:{ responsive:true, interaction:{mode:'index', intersect:false}, plugins:{legend:{position:'top',labels:{boxWidth:12}}}, scales:{ y:{beginAtZero:true, grid:{color:'#efe7dc'}, ticks:{callback:v=>'$'+v}}, y1:{position:'right', beginAtZero:true, grid:{drawOnChartArea:false}} } }, plugins: currentMode === 'day' ? [deltaPlugin] : [roasLabelPlugin] });
+    }
+
+    function aggGroup(records, classifier) { const groups = {}; records.forEach(r => { const k = classifier(r.ads); groups[k] = groups[k] || { spend: 0, revenue: 0 }; groups[k].spend += r.spend || 0; groups[k].revenue += r.revenue || 0; }); return groups; }
+    function renderList(el, items, highlightLabel) { el.innerHTML=''; const head=document.createElement('div'); head.className='mini-item header'; head.innerHTML='<div class="mini-label">维度</div><div class="mini-metrics"><span>花费</span><span>转化金额</span><span>ROAS</span></div>'; el.appendChild(head); items.forEach(item=>{ const hot=highlightLabel && item.label===highlightLabel; const div=document.createElement('div'); div.className='mini-item'; div.innerHTML=`<div class="mini-label">${item.label}${hot?'<span class="crown">👑</span>':''}</div><div class="mini-metrics"><span>${item.spend}</span><span>${item.revenue}</span><span class="${hot?'roas-hot':''}">${item.roas}</span></div>`; el.appendChild(div); }); }
+    function renderCreativeBlocks(creativeData) { const build = groups => Object.entries(groups).map(([k,v]) => ({ label:k, spend:fmtCurrency(v.spend), revenue:fmtCurrency(v.revenue), roas:v.spend?(v.revenue/v.spend).toFixed(2):'-', roasValue:v.spend?(v.revenue/v.spend):0 })); const render = (id, groups) => { const items=build(groups); const best=items.slice().sort((a,b)=>b.roasValue-a.roasValue)[0]?.label; renderList(document.getElementById(id), items, best); }; render('modelList', aggGroup(creativeData, classifyModel)); render('mediaTypeList', aggGroup(creativeData, classifyMedia)); render('contentTypeList', aggGroup(creativeData, classifyContent)); }
+    function renderTable(data) { const tbody=document.getElementById('dataTable'); tbody.innerHTML=''; data.forEach(d=>{ const row=document.createElement('tr'); row.innerHTML=`<td>${d.date}</td><td>${fmtCurrency(d.spend)}</td><td>${fmtCurrency(d.revenue)}</td><td>${d.roas?d.roas.toFixed(2):'-'}</td><td>${fmtPct(d.ctr)}</td><td>${fmtCurrency(d.cpc)}</td><td>${fmtPct(d.conversionRate)}</td><td>${fmtNumber(d.purchases)}</td><td>${fmtNumber(d.clicks)}</td>`; tbody.appendChild(row); }); }
+    function renderInsights(data, rangeData, creativeData) {
+      const insights=document.getElementById('insights'); insights.innerHTML=''; if(!data.length) return;
+      const isDayView=currentMode==='day'&&selectedDay; const summary=agg(data); const lines=[]; const alerts=[];
+      const pickTop = groups => Object.entries(groups).map(([k,v])=>({k, spend:v.spend, revenue:v.revenue, roas:v.spend?v.revenue/v.spend:0})).sort((a,b)=>b.roas-a.roas)[0];
+      const bestModel=pickTop(aggGroup(creativeData, classifyModel)); const bestMedia=pickTop(aggGroup(creativeData, classifyMedia)); const bestContent=pickTop(aggGroup(creativeData, classifyContent));
+      if (isDayView) {
+        const rangeAgg=agg(rangeData); const avgSpend=rangeAgg.spend/Math.max(rangeData.length,1); const avgRevenue=rangeAgg.revenue/Math.max(rangeData.length,1); const avgRoas=rangeAgg.roas||0;
+        const sorted=rangeData.slice().sort((a,b)=>a.date.localeCompare(b.date)); const idx=sorted.findIndex(d=>d.date===selectedDay); const prev=idx>0?sorted[idx-1]:null;
+        lines.push(`当天花费 <strong>${fmtCurrency(summary.spend)}</strong>，转化金额 <strong>${fmtCurrency(summary.revenue)}</strong>，ROAS <strong>${summary.roas?summary.roas.toFixed(2):'-'}</strong>`);
+        lines.push(`较当前周期均值：花费 <strong>${deltaPct(summary.spend, avgSpend)?.toFixed(1) || '—'}%</strong>，转化金额 <strong>${deltaPct(summary.revenue, avgRevenue)?.toFixed(1) || '—'}%</strong>`);
+        if (prev) lines.push(`较前一日（${prev.date}）：花费 <strong>${deltaPct(summary.spend, prev.spend)?.toFixed(1) || '—'}%</strong>，ROAS <strong>${deltaPct(summary.roas||0, prev.roas||0)?.toFixed(1) || '—'}%</strong>`);
+        if (summary.spend > avgSpend * 1.4 && summary.revenue < avgRevenue * .9) alerts.push('花费显著高于周期均值但转化偏低，可能流量质量下降或素材衰退。');
+        if (avgRoas && summary.roas < avgRoas * .7) alerts.push('ROAS 明显低于当前周期均值，建议检查素材疲劳或落地页转化问题。');
+      } else {
+        const topDay=data.slice().sort((a,b)=>(b.roas||0)-(a.roas||0))[0]; const lowDay=data.slice().sort((a,b)=>(a.roas||0)-(b.roas||0))[0]; const rangeAgg=agg(data); const avgRoas=rangeAgg.roas||0; const label=selectedRange.type==='month'?'本月':selectedRange.type==='week'?'本周':'当前筛选';
+        lines.push(`花费 <strong>${fmtCurrency(summary.spend)}</strong>，转化金额 <strong>${fmtCurrency(summary.revenue)}</strong>，ROAS <strong>${summary.roas?summary.roas.toFixed(2):'-'}</strong>`);
+        lines.push(`CTR <strong>${fmtPct(summary.ctr)}</strong>，CPC <strong>${fmtCurrency(summary.cpc)}</strong>，转化率 <strong>${fmtPct(summary.cvr)}</strong>`);
+        lines.push(`${label} ROAS 最高日：<strong>${topDay?.date || '-'}</strong>（<strong>${topDay?.roas?.toFixed(2) || '-'}</strong>）`);
+        if (lowDay && avgRoas && lowDay.roas < avgRoas * .7) alerts.push(`${label}低 ROAS 日：${lowDay.date}（${lowDay.roas?lowDay.roas.toFixed(2):'-'}），可能与素材疲劳或流量偏移相关。`);
+      }
+      if (bestModel) lines.push(`型号表现：<strong>${bestModel.k}</strong> ROAS <strong>${bestModel.roas.toFixed(2)}</strong> · 转化金额 <strong>${fmtCurrency(bestModel.revenue)}</strong>`);
+      if (bestMedia) lines.push(`素材类型：<strong>${bestMedia.k}</strong> ROAS <strong>${bestMedia.roas.toFixed(2)}</strong> · 转化金额 <strong>${fmtCurrency(bestMedia.revenue)}</strong>`);
+      if (bestContent) lines.push(`内容方向：<strong>${bestContent.k}</strong> ROAS <strong>${bestContent.roas.toFixed(2)}</strong> · 转化金额 <strong>${fmtCurrency(bestContent.revenue)}</strong>`);
+      alerts.forEach(t=>{ const li=document.createElement('li'); li.className='alert'; li.textContent=`警惕：${t}`; insights.appendChild(li); });
+      lines.forEach(t=>{ const li=document.createElement('li'); li.innerHTML=t; insights.appendChild(li); });
+    }
+
+    function update() {
+      const data = filterMeta();
+      const rangeData = filterRangeMeta();
+      const creativeData = filterCreative();
+      const isDayView = currentMode === 'day' && selectedDay;
+      const allDates = getAllDates();
+      dateRangeEl.textContent = `${allDates[0]} 至 ${allDates[allDates.length-1]}`;
+      pageTitle.textContent = `Meta Dashboard-${activeRegion}`;
+      regionLabel.textContent = activeRegion;
+      const label = isDayView ? `当天视图 ${selectedDay}` : `${granularitySelect.value === 'month' ? '月度' : granularitySelect.value === 'week' ? '周度' : '任意筛选'} ${selectedRange.start} ~ ${selectedRange.end}`;
+      let deltas = null;
+      if (isDayView) {
+        const sorted = rangeData.slice().sort((a,b)=>a.date.localeCompare(b.date)); const idx=sorted.findIndex(d=>d.date===selectedDay); const prev=idx>0?sorted[idx-1]:null;
+        if (prev) {
+          const curAgg = agg(data);
+          const prevAgg = agg([prev]);
+          deltas = {
+            spend: deltaPct(curAgg.spend, prevAgg.spend),
+            revenue: deltaPct(curAgg.revenue, prevAgg.revenue),
+            roas: deltaPct(curAgg.roas || 0, prevAgg.roas || 0),
+            cpa: deltaPct(curAgg.cpa || 0, prevAgg.cpa || 0),
+            ctr: deltaPct(curAgg.ctr || 0, prevAgg.ctr || 0),
+            cpc: deltaPct(curAgg.cpc || 0, prevAgg.cpc || 0),
+            cpm: deltaPct(curAgg.cpm || 0, prevAgg.cpm || 0),
+            cvr: deltaPct(curAgg.cvr || 0, prevAgg.cvr || 0),
+            aov: deltaPct(curAgg.aov || 0, prevAgg.aov || 0),
+            purchases: deltaPct(curAgg.purchases, prevAgg.purchases)
+          };
+        }
+      } else if (selectedRange.type === 'week') {
+        const periods = buildPeriods().week; const idx = periods.findIndex(w=>w.key===selectedRange.key); const prev = idx>0 ? periods[idx-1] : null;
+        if (prev) {
+          const prevData = getMeta().filter(m=>m.date>=prev.start && m.date<=prev.end);
+          const curAgg=agg(data), prevAgg=agg(prevData);
+          deltas = {
+            spend: deltaPct(curAgg.spend, prevAgg.spend),
+            revenue: deltaPct(curAgg.revenue, prevAgg.revenue),
+            roas: deltaPct(curAgg.roas||0, prevAgg.roas||0),
+            cpa: deltaPct(curAgg.cpa||0, prevAgg.cpa||0),
+            ctr: deltaPct(curAgg.ctr||0, prevAgg.ctr||0),
+            cpc: deltaPct(curAgg.cpc||0, prevAgg.cpc||0),
+            cpm: deltaPct(curAgg.cpm||0, prevAgg.cpm||0),
+            cvr: deltaPct(curAgg.cvr||0, prevAgg.cvr||0),
+            aov: deltaPct(curAgg.aov||0, prevAgg.aov||0),
+            purchases: deltaPct(curAgg.purchases, prevAgg.purchases)
+          };
+        }
+      } else if (selectedRange.type === 'month') {
+        const periods = buildPeriods().month; const idx = periods.findIndex(m=>m.key===selectedRange.key); const prev = idx>0 ? periods[idx-1] : null;
+        if (prev) {
+          const prevData = getMeta().filter(m=>m.date>=prev.start && m.date<=prev.end);
+          const curAgg=agg(data), prevAgg=agg(prevData);
+          deltas = {
+            spend: deltaPct(curAgg.spend, prevAgg.spend),
+            revenue: deltaPct(curAgg.revenue, prevAgg.revenue),
+            roas: deltaPct(curAgg.roas||0, prevAgg.roas||0),
+            cpa: deltaPct(curAgg.cpa||0, prevAgg.cpa||0),
+            ctr: deltaPct(curAgg.ctr||0, prevAgg.ctr||0),
+            cpc: deltaPct(curAgg.cpc||0, prevAgg.cpc||0),
+            cpm: deltaPct(curAgg.cpm||0, prevAgg.cpm||0),
+            cvr: deltaPct(curAgg.cvr||0, prevAgg.cvr||0),
+            aov: deltaPct(curAgg.aov||0, prevAgg.aov||0),
+            purchases: deltaPct(curAgg.purchases, prevAgg.purchases)
+          };
+        }
+      }
+      renderKpis(data, label, deltas); renderChart(data, rangeData); renderCreativeBlocks(creativeData); renderTable(data); renderInsights(data, rangeData, creativeData);
+      document.getElementById('trendTitle').textContent = isDayView ? `当天 vs ${compareMode === 'prev' ? '前日' : '当前周期均值'}（${selectedDay}）` : '趋势（每日）';
+      document.getElementById('trendNote').textContent = isDayView ? `当日花费/转化金额与${compareMode === 'prev' ? '前日' : '当前周期均值'}对比，连线标注差异率。` : '展示当前筛选区间的每日走势。';
+      compareWrap.classList.toggle('hidden', !isDayView);
+      summaryButton.classList.toggle('active', currentMode === 'summary' && selectedRange.type === 'week');
+    }
+
+    function initializeForRegion() {
+      const minDate = getMinDate(), maxDate = getMaxDate();
+      customStart.min = customEnd.min = minDate; customStart.max = customEnd.max = maxDate; customStart.value = minDate; customEnd.value = maxDate;
+      compareSelect.value = compareMode;
+      if (!selectedRange.type) {
+        selectedRange = { type:'week', key:null, start:minDate, end:maxDate, dates:[] };
+      }
+      if (!granularitySelect.value) {
+        granularitySelect.value = 'week';
+      }
+      setPeriodOptions();
+      const periods = buildPeriods();
+      if (granularitySelect.value !== 'custom') {
+        const pool = periods[granularitySelect.value] || [];
+        const exists = pool.some(p => p.key === selectedRange.key);
+        if (!exists && pool.length) {
+          selectedRange = { ...pool[pool.length - 1], type: granularitySelect.value };
+          if (selectedRange.type === 'week') selectedDay = selectedRange.dates[selectedRange.dates.length - 1] || null;
+        }
+      } else if (selectedRange.start < minDate || selectedRange.end > maxDate) {
+        selectedRange = { type:'custom', key:'custom', start:minDate, end:maxDate, dates:getAllDates().filter(d => d >= minDate && d <= maxDate) };
+      }
+      applySelectedPeriod();
+    }
+
+    summaryButton.addEventListener('click', () => { currentMode = 'summary'; renderDayButtons(); update(); });
+    granularitySelect.addEventListener('change', setPeriodOptions);
+    periodSelect.addEventListener('change', applySelectedPeriod);
+    applyCustom.addEventListener('click', applySelectedPeriod);
+    compareSelect.addEventListener('change', () => { compareMode = compareSelect.value; update(); });
+
+    renderRegionTabs();
+    initializeForRegion();
+  </script>
+</body>
+</html>
