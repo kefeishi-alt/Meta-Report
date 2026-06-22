@@ -2,7 +2,10 @@
 看板-skf.xlsx
 一键生成看板.command
 一键生成并推送.command
-meta-dashboard-template.html
-update_meta_dashboard.py
-看板核心/
+/meta-dashboard-template.html
+/update_meta_dashboard.py
+看板核心/logs/
+看板核心/__pycache__/
+看板核心/*.pyc
+看板核心/index.html
 core
