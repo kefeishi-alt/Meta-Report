@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 import urllib.parse
 import urllib.request
+import urllib.error
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -56,9 +58,22 @@ def resolve_account_ids() -> list[str]:
     return [x.strip() for x in raw.split(",") if x.strip()]
 
 
-def graph_json(url: str) -> dict:
-    with urllib.request.urlopen(url, timeout=60) as response:
-        return json.loads(response.read().decode("utf-8", "replace"))
+def graph_json(url: str, *, attempts: int = 4) -> dict:
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=90) as response:
+                return json.loads(response.read().decode("utf-8", "replace"))
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code not in {429, 500, 502, 503, 504} or attempt == attempts:
+                raise
+        except urllib.error.URLError as exc:
+            last_error = exc
+            if attempt == attempts:
+                raise
+        time.sleep(2 ** attempt)
+    raise RuntimeError(f"Meta API request failed after retries: {last_error}")
 
 
 def iter_insights(account_id: str, since: str, until: str) -> list[dict]:
@@ -175,6 +190,14 @@ def load_existing_rows() -> list[dict]:
     return rows if isinstance(rows, list) else []
 
 
+def existing_rows_for_account(existing_rows: list[dict], account_id: str, since: str, until: str) -> list[dict]:
+    region = ACCOUNT_REGION_MAP.get(account_id, "US")
+    return [
+        row for row in existing_rows
+        if row.get("region") == region and since <= row.get("day", "") <= until
+    ]
+
+
 def merge_rows(existing_rows: list[dict], fresh_rows: list[dict], since: str, until: str) -> list[dict]:
     merged: dict[tuple[str, str, str, str], dict] = {}
     for row in existing_rows:
@@ -193,15 +216,25 @@ def main() -> None:
     since, until = resolve_dates(args)
 
     account_ids = resolve_account_ids()
+    existing_rows = load_existing_rows()
     fetched_rows: list[dict] = []
+    failed_accounts: list[str] = []
     for account_id in account_ids:
-        fetched_rows.extend(build_row(account_id, item) for item in iter_insights(account_id, since, until))
+        try:
+            fetched_rows.extend(build_row(account_id, item) for item in iter_insights(account_id, since, until))
+        except Exception as exc:
+            cached_rows = existing_rows_for_account(existing_rows, account_id, since, until)
+            if not cached_rows:
+                raise RuntimeError(f"Meta API failed for {account_id} and no cached rows are available.") from exc
+            failed_accounts.append(account_id)
+            fetched_rows.extend(cached_rows)
 
-    rows = merge_rows(load_existing_rows(), fetched_rows, since, until)
+    rows = merge_rows(existing_rows, fetched_rows, since, until)
     payload = {
         "generatedAt": datetime.now(SHANGHAI).isoformat(),
         "startDate": since,
         "endDate": until,
+        "warnings": [f"Used cached rows for {account_id} after Meta API failure." for account_id in failed_accounts],
         "rows": rows,
     }
 
@@ -211,6 +244,7 @@ def main() -> None:
             "endDate": until,
             "rowCount": len(fetched_rows),
             "mergedRowCount": len(rows),
+            "failedAccounts": failed_accounts,
             "regions": sorted({row["region"] for row in rows}),
         }, ensure_ascii=False, indent=2))
         return

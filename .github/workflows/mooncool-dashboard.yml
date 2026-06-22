@@ -24,7 +24,7 @@ jobs:
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_AD_ACCOUNT_IDS: ${{ secrets.META_AD_ACCOUNT_IDS }}
-        run: python3 "看板核心/fetch_meta_dashboard_data.py"
+        run: python3 "看板核心/fetch_meta_dashboard_data.py" --lookback-days 7 --bootstrap-lookback-days 30
 
       - name: Generate dashboard
         run: python3 "看板核心/update_meta_dashboard.py" --source json
