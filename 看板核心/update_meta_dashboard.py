@@ -146,6 +146,7 @@ def parse_json_rows():
         out.append({
             "region": row.get("region", "US"),
             "accountName": row.get("accountName", ""),
+            "adId": row.get("adId", ""),
             "day": day,
             "ads": row.get("ads", ""),
             "spend": num(row.get("spend")),

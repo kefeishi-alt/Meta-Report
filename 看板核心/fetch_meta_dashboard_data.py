@@ -83,6 +83,7 @@ def iter_insights(account_id: str, since: str, until: str) -> list[dict]:
         "limit": "500",
         "fields": ",".join([
             "account_name",
+            "ad_id",
             "ad_name",
             "date_start",
             "date_stop",
@@ -138,6 +139,7 @@ def build_row(account_id: str, item: dict) -> dict:
     return {
         "region": ACCOUNT_REGION_MAP.get(account_id, "US"),
         "accountName": item.get("account_name", ""),
+        "adId": item.get("ad_id", ""),
         "day": item.get("date_start", ""),
         "ads": item.get("ad_name", ""),
         "spend": round(spend, 2),
@@ -198,15 +200,25 @@ def existing_rows_for_account(existing_rows: list[dict], account_id: str, since:
     ]
 
 
+def row_key(row: dict) -> tuple[str, str, str, str, str]:
+    return (
+        row.get("day", ""),
+        row.get("region", ""),
+        row.get("accountName", ""),
+        row.get("adId", ""),
+        row.get("ads", ""),
+    )
+
+
 def merge_rows(existing_rows: list[dict], fresh_rows: list[dict], since: str, until: str) -> list[dict]:
-    merged: dict[tuple[str, str, str, str], dict] = {}
+    merged: dict[tuple[str, str, str, str, str], dict] = {}
     for row in existing_rows:
         day = row.get("day", "")
         if since <= day <= until:
             continue
-        merged[(row.get("day", ""), row.get("region", ""), row.get("accountName", ""), row.get("ads", ""))] = row
+        merged[row_key(row)] = row
     for row in fresh_rows:
-        merged[(row.get("day", ""), row.get("region", ""), row.get("accountName", ""), row.get("ads", ""))] = row
+        merged[row_key(row)] = row
     return sorted(merged.values(), key=lambda item: (item["day"], item["region"], item["accountName"], item["ads"]))
 
 
